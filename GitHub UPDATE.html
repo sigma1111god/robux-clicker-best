@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ROBUX TYCOON: LUNACY EXTREME</title>
+    <style>
+        :root { --main: #a855f7; --bg: #020617; --panel: #0f172a; --accent: #f59e0b; --divine: #fbbf24; }
+        body { margin: 0; background: var(--bg); color: white; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
+        
+        #menu { position: fixed; inset: 0; background: var(--bg); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        #start-btn { padding: 20px 60px; font-size: 24px; background: none; color: var(--main); border: 3px solid var(--main); cursor: pointer; box-shadow: 0 0 30px var(--main); transition: 0.3s; font-weight: bold; }
+        #start-btn:hover { background: var(--main); color: white; }
+
+        .hud { width: 100%; padding: 20px; background: var(--panel); display: flex; justify-content: space-around; border-bottom: 2px solid #1e293b; }
+        .stat-val { font-size: 28px; color: var(--main); font-weight: bold; text-shadow: 0 0 10px var(--main); }
+        .label { font-size: 10px; color: #475569; letter-spacing: 2px; }
+
+        .main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; }
+        #coin { width: 160px; height: 160px; background: #1e293b; border: 5px solid var(--main); border-radius: 50%; cursor: pointer; font-size: 60px; display: flex; align-items: center; justify-content: center; transition: 0.1s; box-shadow: 0 0 40px rgba(168, 85, 247, 0.2); }
+        #coin:active { transform: scale(0.9); box-shadow: 0 0 60px var(--main); }
+
+        .btn-group { display: flex; gap: 8px; }
+        .btn { padding: 10px 18px; background: #1e293b; color: white; border: 1px solid #334155; cursor: pointer; font-weight: bold; font-size: 11px; }
+
+        .shop { width: 100%; max-width: 550px; background: var(--panel); border-radius: 25px 25px 0 0; padding: 20px; height: 38vh; overflow-y: auto; border: 1px solid #334155; border-top: 2px solid var(--main); }
+        .item { display: flex; align-items: center; background: #020617; padding: 12px; margin-bottom: 8px; border: 1px solid #1e293b; cursor: pointer; transition: 0.2s; }
+        .item:hover { border-color: var(--main); transform: translateX(5px); }
+        .item.poor { opacity: 0.2; cursor: not-allowed; }
+
+        #drop-box { position: fixed; top: 100px; right: 20px; background: #0f172a; border: 2px solid var(--divine); padding: 15px; border-radius: 5px; box-shadow: 0 0 20px var(--divine); display: none; z-index: 1000; width: 250px; }
+        .frag-progress { height: 5px; background: #1e293b; margin-top: 10px; border-radius: 5px; }
+        .frag-bar { height: 100%; background: var(--divine); width: 0%; transition: 0.3s; }
+
+        .pop { position: absolute; pointer-events: none; color: white; font-weight: bold; animation: fly 0.8s forwards; text-shadow: 0 0 10px var(--main); }
+        @keyframes fly { to { transform: translateY(-120px) scale(1.5); opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div id="menu">
+        <h1 style="letter-spacing: 15px; font-size: 45px;">LUNACY</h1>
+        <p style="color: #475569;">[ EXTREME FRAGMENTS ]</p>
+        <button id="start-btn" onclick="ignite()">ENGAGE SYSTEM</button>
+    </div>
+
+    <div id="drop-box">
+        <div style="font-size: 10px; color: var(--divine); letter-spacing: 2px; font-weight: bold;">CRYPTIC DATA FOUND</div>
+        <div id="drop-text" style="font-family: monospace; margin-top: 5px; font-size: 18px; letter-spacing: 3px;">********</div>
+        <div class="frag-progress"><div id="frag-bar" class="frag-bar"></div></div>
+        <div id="frag-count" style="font-size: 9px; margin-top: 5px; color: #475569;">0/5 PIECES</div>
+    </div>
+
+    <audio id="music-track" loop><source src="lunacy (Slowed).mp3" type="audio/mpeg"></audio>
+
+    <div class="hud">
+        <div class="stat"><span class="label">ROBUX</span><span id="bal" class="stat-val">0</span></div>
+        <div class="stat"><span class="label" id="rank-label">RANK: NOOBY</span><span id="rps" class="stat-val">0</span><br><small style="font-size:8px">RPS</small></div>
+        <div class="stat"><span class="label">REBIRTHS</span><span id="rebirth-stat" class="stat-val">0/5</span></div>
+    </div>
+
+    <div class="main">
+        <div id="coin">R$</div>
+        <div class="btn-group">
+            <button class="btn" onclick="gamble()">🎲 GAMBLE</button>
+            <button class="btn" onclick="redeem()">🔑 CODES</button>
+            <button class="btn" onclick="rebirth()" style="border-color:#ef4444; color:#ef4444;">🌀 REBIRTH</button>
+        </div>
+    </div>
+
+    <div class="shop" id="shop-list"></div>
+
+    <script>
+        const MAX_MONEY = 199999999999;
+        const shopData = [
+            { id: 'c1', name: 'Macro Finger', cost: 50, val: 5, type: 'c', icon: '⚡' },
+            { id: 'c2', name: 'Pro Script', cost: 2500, val: 100, type: 'c', icon: '📜' },
+            { id: 'a1', name: 'Ghost Bot', cost: 20, val: 1, type: 'a', icon: '🤖' },
+            { id: 'a2', name: 'Python Dev', cost: 500, val: 20, type: 'a', icon: '💻' },
+            { id: 'a3', name: 'Mainframe', cost: 10000, val: 350, type: 'a', icon: '☁️' },
+            { id: 'a4', name: 'Billionaire', cost: 1000000, val: 60000, type: 'a', icon: '💎' }
+        ];
+
+        let g = JSON.parse(localStorage.getItem('lunacy_extreme_v2')) || { 
+            money: 0, cpc: 1, rps: 0, rebirths: 0, prestige: 0, items: {}, 
+            frags: { "the gods": 0, "lunacy": 0, "slowed": 0, "ruin it": 0 } 
+        };
+        
+        const tiers = ["NOOBY", "PRO", "HACKER", "VOID GOD", "ERROR"];
+
+        function ignite() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('music-track').play();
+            update();
+        }
+
+        // --- FRAGMENT SYSTEM ---
+        function checkDrops() {
+            const roll = Math.random();
+            if (roll < 0.000001) giveFrag("the gods"); // 1 in 1M
+            else if (roll < 0.0000016) giveFrag("lunacy"); // 1 in 600k
+            else if (roll < 0.00004) giveFrag("slowed"); // 1 in 25k
+            else if (roll < 0.0001) giveFrag("ruin it"); // 1 in 10k
+        }
+
+        function giveFrag(code) {
+            if (g.frags[code] < 5) {
+                g.frags[code]++;
+                showFragUI(code);
+                update();
+            }
+        }
+
+        function showFragUI(code) {
+            const box = document.getElementById('drop-box');
+            const text = document.getElementById('drop-text');
+            const bar = document.getElementById('frag-bar');
+            const countLabel = document.getElementById('frag-count');
+            
+            let count = g.frags[code];
+            bar.style.width = (count * 20) + "%";
+            countLabel.innerText = `${count}/5 PIECES FOUND`;
+
+            // Code remains hidden as '*' until all 5 pieces are found
+            if (count < 5) {
+                text.innerText = code.split('').map(c => c === ' ' ? ' ' : '*').join('');
+            } else {
+                text.innerHTML = `<span style="color:var(--divine)">REVEALED: ${code.toUpperCase()}</span>`;
+            }
+
+            box.style.display = 'block';
+            setTimeout(() => { box.style.display = 'none'; }, 6000);
+        }
+
+        // --- CORE GAMEPLAY ---
+        function rebirth() {
+            const cost = 2000000 + (g.rebirths * 1000000);
+            if (g.money >= cost) {
+                g.rebirths++; g.money = 0; g.items = {}; g.cpc = 1; g.rps = 0; update();
+                alert("Rebirth Successful!");
+            }
+        }
+
+        function gamble() {
+            let bet = Number(prompt("Bet amount?"));
+            if (isNaN(bet) || bet <= 0 || bet > g.money) return;
+            if (Math.random() > 0.5) { g.money += bet; alert("WINNER!"); }
+            else { g.money -= bet; alert("LOSER!"); }
+            update();
+        }
+
+        function redeem() {
+            let input = prompt("Enter Decrypted Code:").toLowerCase().trim();
+            if (!g.frags[input] || g.frags[input] < 5) return alert("System Error: Code not fully decrypted yet!");
+            
+            if (input === "the gods") { g.prestige = 3; alert("Rank set to VOID GOD!"); }
+            if (input === "lunacy") { g.money += 500000; alert("R$ 500,000 Added!"); }
+            if (input === "slowed") { g.cpc += 1000; alert("Click Power Massive Boost!"); }
+            if (input === "ruin it") { g.money = MAX_MONEY; alert("BANK MAXED!"); }
+            update();
+        }
+
+        function buy(id) {
+            const item = shopData.find(x => x.id === id);
+            const lvl = g.items[id] || 0;
+            const cost = Math.ceil(item.cost * Math.pow(1.35, lvl));
+            if (g.money >= cost) {
+                g.money -= cost;
+                g.items[id] = lvl + 1;
+                if (item.type === 'c') g.cpc += item.val;
+                update();
+            }
+        }
+
+        function renderShop() {
+            const list = document.getElementById('shop-list');
+            list.innerHTML = '';
+            shopData.forEach(i => {
+                const lvl = g.items[i.id] || 0;
+                const cost = Math.ceil(i.cost * Math.pow(1.35, lvl));
+                list.innerHTML += `
+                    <div class="item ${g.money < cost ? 'poor' : ''}" onclick="buy('${i.id}')">
+                        <span style="font-size:30px">${i.icon}</span>
+                        <div style="flex:1; margin-left:15px"><strong>${i.name} (Lv ${lvl})</strong></div>
+                        <div>R$ ${cost.toLocaleString()}</div>
+                    </div>`;
+            });
+        }
+
+        document.getElementById('coin').addEventListener('mousedown', (e) => {
+            checkDrops();
+            let gain = (g.cpc * Math.pow(2, g.rebirths));
+            g.money = Math.min(MAX_MONEY, g.money + gain);
+            
+            const p = document.createElement('div');
+            p.className = 'pop'; p.innerText = "+" + Math.floor(gain).toLocaleString();
+            p.style.left = e.clientX + 'px'; p.style.top = e.clientY + 'px';
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 800);
+            update();
+        });
+
+        function update() {
+            g.rps = shopData.filter(x => x.type === 'a').reduce((s, x) => s + (g.items[x.id] || 0) * x.val, 0);
+            document.getElementById('bal').innerText = Math.floor(g.money).toLocaleString();
+            document.getElementById('rps').innerText = Math.floor(g.rps).toLocaleString();
+            document.getElementById('rebirth-stat').innerText = g.rebirths + "/5";
+            document.getElementById('rank-label').innerText = "RANK: " + (tiers[g.prestige] || "NOOB");
+            
+            localStorage.setItem('lunacy_extreme_v2', JSON.stringify(g));
+            renderShop();
+        }
+
+        setInterval(() => { 
+            if (g.money < MAX_MONEY) {
+                g.money = Math.min(MAX_MONEY, g.money + (g.rps / 10)); 
+                update(); 
+            }
+        }, 100);
+        update();
+    </script>
+</body>
+</html>
