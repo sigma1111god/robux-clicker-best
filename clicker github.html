@@ -32,9 +32,7 @@
         .pop { position: absolute; pointer-events: none; color: white; font-weight: bold; animation: fly 0.8s forwards; text-shadow: 0 0 10px var(--main); }
         @keyframes fly { to { transform: translateY(-120px) scale(1.5); opacity: 0; } }
 
-        /* Prestige Effects */
-        .tier-god { box-shadow: inset 0 0 100px rgba(255, 215, 0, 0.2); }
-        .tier-god #coin { border-color: #ffd700; color: #ffd700; box-shadow: 0 0 60px #ffd700; }
+        .tier-god { box-shadow: inset 0 0 100px rgba(255, 215, 0, 0.4); }
     </style>
 </head>
 <body id="body">
@@ -60,19 +58,21 @@
         <div class="btn-group">
             <button class="btn" onclick="gamble()">🎲 GAMBLE</button>
             <button class="btn" onclick="redeem()">🔑 CODES</button>
-            <button class="btn btn-rebirth" id="rebirth-btn" onclick="rebirth()">🌀 REBIRTH (2M)</button>
+            <button class="btn btn-rebirth" id="rebirth-btn" onclick="rebirth()">🌀 REBIRTH</button>
         </div>
     </div>
 
     <div class="shop" id="shop-list"></div>
 
     <script>
-        const MAX_MONEY = 999999999999999; 
+        // FIXED MAX MONEY AS REQUESTED
+        const MAX_MONEY = 199999999999; 
         
-        let g = JSON.parse(localStorage.getItem('lunacy_ultimate_v1')) || { 
+        let g = JSON.parse(localStorage.getItem('lunacy_v6_final')) || { 
             money: 0, cpc: 1, rps: 0, rebirths: 0, prestige: 0, items: {} 
         };
         
+        let slowedActive = false;
         const track = document.getElementById('music-track');
         const tiers = ["PRESTIGE NOOBY", "PRESTIGE BETTER", "PRO", "BETTER PRO", "HACKER", "GOD"];
 
@@ -92,58 +92,77 @@
         ];
 
         function getRebirthCost() {
-            // Cost scales based on rebirth count and prestige tier
             return (2000000 + (g.rebirths * 1000000)) * (g.prestige + 1);
         }
 
         function getMaxRebirths() {
-            return g.prestige === 5 ? 10 : 5; // God tier gets 10, others get 5
+            return g.prestige === 5 ? 10 : 5;
         }
 
         function rebirth() {
             const maxRB = getMaxRebirths();
             const cost = getRebirthCost();
-
             if (g.money >= cost) {
                 if (g.rebirths < maxRB) {
-                    // Standard Rebirth
                     g.rebirths++;
                     g.money = 0; g.rps = 0; g.cpc = 1; g.items = {};
-                    alert("Rebirth Successful! 2x Power Gained.");
+                    alert("Rebirth Successful!");
                 } else if (g.prestige < 5) {
-                    // Prestige Advance
-                    if (confirm(`MAX REBIRTHS! Advance to ${tiers[g.prestige + 1]} Tier? (Total Reset)`)) {
+                    if (confirm(`MAX REBIRTHS! Advance to ${tiers[g.prestige + 1]}?`)) {
                         g.prestige++;
                         g.rebirths = 0;
                         g.money = 0; g.rps = 0; g.cpc = 1; g.items = {};
                     }
-                } else {
-                    alert("YOU HAVE ATTAINED ULTIMATE DIVINITY.");
                 }
                 update();
-            } else {
-                alert(`Need ${cost.toLocaleString()} Robux!`);
-            }
+            } else { alert(`Need ${cost.toLocaleString()} Robux!`); }
         }
 
+        // FIXED GAMBLING: DOUBLE MONEY ON WIN, LOSE ALL ON LOSS
         function gamble() {
-            if (g.money < 100) return alert("Need 100 R$!");
-            let bet = prompt("Bet amount?");
-            if (bet > g.money || bet <= 0) return;
+            if (g.money < 1) return alert("You're broke!");
+            
+            let betInput = prompt(`Balance: R$ ${Math.floor(g.money).toLocaleString()}\nHow much do you want to bet?`);
+            let bet = Number(betInput); // Ensures it is a number
+
+            if (isNaN(bet) || bet <= 0) return alert("Invalid amount!");
+            if (bet > g.money) return alert("You don't have that much!");
+
             if (Math.random() > 0.5) { 
-                g.money = Math.min(MAX_MONEY, g.money + bet*1.5); 
-                alert("JACKPOT!"); 
+                // WINNER: Adds the bet amount to current balance (Doubling your stake)
+                g.money += bet; 
+                alert(`JACKPOT! You won R$ ${bet.toLocaleString()}!\nNew Balance: R$ ${Math.floor(g.money).toLocaleString()}`); 
             } else { 
-                g.money -= bet*1; 
-                alert("BUSTED!"); 
+                // BUSTED: Subtracts exactly the amount you bet
+                g.money -= bet; 
+                alert(`BUSTED! You lost R$ ${bet.toLocaleString()}.\nNew Balance: R$ ${Math.floor(g.money).toLocaleString()}`); 
             }
             update();
         }
 
         function redeem() {
             let code = prompt("Enter Code:").toLowerCase().trim();
-            if (code === "lunacy") { g.money += 100000; alert("R$ 100k Added!"); }
-            if (code === "godspeed") { g.money += 500000000; alert("DIVINE BOOST: R$ 500M!"); }
+            
+            if (code === "lunacy") { 
+                g.money = Math.min(MAX_MONEY, g.money + 100000); 
+                alert("Code Accepted: R$ 100,000 Added!"); 
+            }
+            else if (code === "slowed") {
+                slowedActive = true;
+                alert("CODE: SLOWED ACTIVE! 500k per click for 5 seconds!");
+                setTimeout(() => { slowedActive = false; alert("Slowed effect ended."); }, 5000);
+            }
+            else if (code === "ruin it") {
+                g.money = Math.min(MAX_MONEY, g.money + 50000000);
+                alert("Code Accepted: R$ 50,000,000 Added!");
+            }
+            else if (code === "the gods") {
+                g.prestige = 5;
+                g.rebirths = 2;
+                g.money = 50000;
+                g.items = {}; g.cpc = 1;
+                alert("DIVINE CODE: You are now a GOD (Rebirth 2).");
+            }
             update();
         }
 
@@ -175,12 +194,11 @@
         }
 
         document.getElementById('coin').addEventListener('mousedown', (e) => {
-            // Power multiplier: Base * 2^Rebirths * (Prestige+1)
-            let gain = g.cpc * Math.pow(2, g.rebirths) * (g.prestige + 1);
+            let gain = slowedActive ? 500000 : (g.cpc * Math.pow(2, g.rebirths) * (g.prestige + 1));
             g.money = Math.min(MAX_MONEY, g.money + gain);
             
             const p = document.createElement('div');
-            p.className = 'pop'; p.innerText = "+" + Math.floor(gain);
+            p.className = 'pop'; p.innerText = "+" + Math.floor(gain).toLocaleString();
             p.style.left = e.clientX + 'px'; p.style.top = e.clientY + 'px';
             document.body.appendChild(p);
             setTimeout(() => p.remove(), 800);
@@ -189,7 +207,6 @@
 
         function update() {
             g.rps = shopData.filter(x => x.type === 'a').reduce((s, x) => s + (g.items[x.id] || 0) * x.val, 0) * (g.prestige + 1);
-            
             const maxRB = getMaxRebirths();
             const cost = getRebirthCost();
             
@@ -200,21 +217,15 @@
             
             const rbBtn = document.getElementById('rebirth-btn');
             if (g.rebirths >= maxRB && g.prestige < 5) {
-                rbBtn.innerText = `⭐ PRESTIGE TO ${tiers[g.prestige+1]}`;
-                rbBtn.style.boxShadow = "0 0 30px #00ffcc";
-                rbBtn.style.color = "#00ffcc";
+                rbBtn.innerText = "⭐ ADVANCE PRESTIGE";
             } else if (g.rebirths >= maxRB && g.prestige === 5) {
-                rbBtn.innerText = "MAX DIVINITY";
+                rbBtn.innerText = "MAX GOD";
             } else {
                 rbBtn.innerText = `🌀 REBIRTH (${(cost/1000000).toFixed(1)}M)`;
-                rbBtn.style.boxShadow = g.money >= cost ? "0 0 20px #ef4444" : "none";
-                rbBtn.style.color = "#ef4444";
             }
 
-            // Visual Scaling
             if (g.prestige === 5) document.getElementById('body').classList.add('tier-god');
-
-            localStorage.setItem('lunacy_ultimate_v1', JSON.stringify(g));
+            localStorage.setItem('lunacy_v6_final', JSON.stringify(g));
             renderShop();
         }
 
